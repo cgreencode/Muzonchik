@@ -51,22 +51,12 @@ class TrackListTableViewCell: MGSwipeTableCell {
         downloadProgressView.isHidden = true
         musicPlayIdicatorView.state = .estMusicIndicatorViewStateStopped
         checkMarkImageView.isHidden = true
+        
+        audioData.isPlaying ? (musicPlayIdicatorView.state = .estMusicIndicatorViewStatePlaying) : (musicPlayIdicatorView.state = .estMusicIndicatorViewStateStopped)
+        
     }
-	
-	func showESTIndicator() {
-		musicPlayIdicatorView.state = .estMusicIndicatorViewStatePlaying
-	}
-	
-	func hideESTIndicator() {
-		musicPlayIdicatorView.state = .estMusicIndicatorViewStateStopped
-	}
-	
-	override var isSelected: Bool {
-		didSet{
-			isSelected ? showESTIndicator() : hideESTIndicator()
-		}
-	}
     
+
     override func awakeFromNib() {
         super.awakeFromNib()
         // Initialization code

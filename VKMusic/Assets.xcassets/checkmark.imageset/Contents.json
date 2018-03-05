@@ -2,11 +2,12 @@
   "images" : [
     {
       "idiom" : "universal",
+      "filename" : "checkmark for settings@1x.png",
       "scale" : "1x"
     },
     {
       "idiom" : "universal",
-      "filename" : "icons8-below-96.png",
+      "filename" : "checkmark for settings@2x.png",
       "scale" : "2x"
     },
     {
