@@ -115,6 +115,7 @@ class GlobalFunctions {
 		urlRequest.httpMethod = "GET"
 		urlRequest.addValue("application/json", forHTTPHeaderField: "Accept")
 		urlRequest.addValue(url, forHTTPHeaderField: "url")
+        urlRequest.addValue(YOUTUBE_CONVERTER_API_KEY, forHTTPHeaderField: "api-key")
 		urlRequest.addValue(GlobalFunctions.shared.getUserCurrentOneSigPushID(), forHTTPHeaderField: "push")
 		
 		let task = URLSession.shared.dataTask(with: urlRequest) { (data, response, error) -> Void in
@@ -194,10 +195,8 @@ class GlobalFunctions {
 	}
 	
 	func getUserCurrentOneSigPushID() -> String {
-		
 		let status: OSPermissionSubscriptionState = OneSignal.getPermissionSubscriptionState()
-		if let id = status.subscriptionStatus.userId { return id }
-		return "0000-1234-9874"
+        return status.subscriptionStatus.userId ?? "0000-1234-9874"
 	}
 }
 
