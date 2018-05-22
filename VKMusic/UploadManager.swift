@@ -15,16 +15,21 @@ import Foundation
 
 class UploadManager: NSObject, URLSessionDataDelegate {
 	
-    static let shared = UploadManager()
+	var urlRequest: URLRequest!
+	var data: Data!
 	weak var delegate: UploadManagerDelegage?
-    
-	func uploadZipFile() {
-        var urlRequest = URLRequest(url: UPLOAD_ZIP_FILE_URL)
-        urlRequest.httpMethod = "POST"
-        urlRequest.setValue("Keep-Alive", forHTTPHeaderField: "Connection")
-        
-		let session = URLSession(configuration: URLSessionConfiguration.background(withIdentifier: "uploadTask"), delegate: self, delegateQueue: OperationQueue.main)
-        let task = session.uploadTask(with: urlRequest, fromFile: DocumentsDirectory.localDocumentsURL.appendingPathComponent("import.zip"))
+	
+	init(uploadTaskDataFromURL data_url: URL) {
+		self.data = try! Data(contentsOf: data_url)
+		self.urlRequest = URLRequest(url: UPLOAD_ZIP_FILE_URL)
+		self.urlRequest.httpMethod = "POST"
+		self.urlRequest.setValue("Keep-Alive", forHTTPHeaderField: "Connection")
+		self.urlRequest.httpBodyStream = InputStream(data: data)
+	}
+	
+	func uploadFiles() {
+		let session = URLSession(configuration: URLSessionConfiguration.default, delegate: self, delegateQueue: OperationQueue.main)
+		let task = session.uploadTask(with: urlRequest, from: data)
 		task.resume()
 	}
 	

@@ -89,8 +89,9 @@ class SettingsTableVC: UITableViewController {
 	func uploadZipToLocalPC() {
 		self.progressView.progress = Float(0)
 		self.showActivityIndicator(withStatus: "Uploading ...")
-		UploadManager.shared.delegate = self
-		UploadManager.shared.uploadZipFile()
+		let uploadManager = UploadManager(uploadTaskDataFromURL: DocumentsDirectory.localDocumentsURL.appendingPathComponent("import.zip"))
+		uploadManager.delegate = self
+		uploadManager.uploadFiles()
 	}
 	
     func unZip() {
@@ -193,7 +194,7 @@ class SettingsTableVC: UITableViewController {
 //MARK: - DownloadManagerDelegate
 extension SettingsTableVC: DownloadManagerDelegate {
 	func didFinishDownloading(withError error: String?) {
-        if error == nil { 
+		if error == nil {
 			DispatchQueue.global(qos: .background).async {
 				self.unZip()
 			}
