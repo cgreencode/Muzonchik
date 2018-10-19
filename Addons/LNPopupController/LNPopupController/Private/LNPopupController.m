@@ -826,7 +826,7 @@ static CGFloat __smoothstep(CGFloat a, CGFloat b, CGFloat x)
 	_currentPopupItem = newContentController.popupItem;
 	_currentPopupItem.itemDelegate = self;
 	
-	self.popupBarStorage.popupItem = _currentPopupItem;
+	self.popupBar.popupItem = _currentPopupItem;
 	
 	if(_currentContentController)
 	{

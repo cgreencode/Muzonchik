@@ -10,7 +10,7 @@ import UIKit
 import LNPopupController
 import MediaPlayer
 
-class CompactMusicPlayerVC: UIViewController, UIGestureRecognizerDelegate {
+class CompactMusicPlayerVC: UIViewController {
 	//MARK: - @IBOutlet
 	@IBOutlet weak var musicControlsView: UIView!
 	@IBOutlet weak var songNameLabel: UILabel!
@@ -48,7 +48,6 @@ class CompactMusicPlayerVC: UIViewController, UIGestureRecognizerDelegate {
 		else {
 			popupItem.rightBarButtonItems = [ puseBarButton, nextBarButton ]
 		}
-        
 	}
 	
 	override func viewWillAppear(_ animated: Bool) {
@@ -56,22 +55,13 @@ class CompactMusicPlayerVC: UIViewController, UIGestureRecognizerDelegate {
 		
 		tableView.reloadData()
 	}
-    
-    override var viewForPopupInteractionGestureRecognizer: UIView {
-        return UIView()
-    }
-    
+	
 	override func viewDidLoad() {
 		super.viewDidLoad()
 		setupUI()
 		tableView.scrollToRow(at: IndexPath(row: currentIndexPathRow, section: 0), at: .none, animated: true)
 	}
-    
-    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
-        return false
-    }
-    
-    
+	
 	func setupUI() {
 		setupVolumeBar()
 		updateCurrentTrackInfo()
