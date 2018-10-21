@@ -16,6 +16,7 @@ class TrackListTableVC: UITableViewController {
 	
 	//MARK: - Constants
 	let searchController = UISearchController(searchResultsController: nil)
+    
 	//MARK: - Variables
 	var currentSelectedIndex = -1
 	var audioFiles = [Audio]()
@@ -353,12 +354,43 @@ class TrackListTableVC: UITableViewController {
 			}
 		})
 	}
+    
+    func getLocalTrack() {
+        showActivityIndicator(withStatus: "Waiting for response ...")
+        
+        GlobalFunctions.shared.getLocalTrack { (audios, error) in
+            if error == nil {
+                self.currentSelectedIndex = -1
+                
+                guard let audios = audios else { return }
+                
+                self.audioFiles.removeAll()
+
+                for audio in audios {
+                    self.audioFiles.append(audio)
+                }
+                
+                DispatchQueue.main.async {
+                    self.isDownloadedListShown = false
+                    self.tableView.reloadData()
+                    self.hideActivityIndicator()
+                }
+            } else {
+                DispatchQueue.main.async {
+                    SwiftNotificationBanner.presentNotification(error ?? "Error parsing video")
+                    self.hideActivityIndicator()
+                }
+            }
+        }
+    }
 	
 	func getAudioFromYouTubeURL(url: String) {
 		showActivityIndicator(withStatus: "Waiting for response ...")
 		GlobalFunctions.shared.convertYouTubeURL(url: url) { (message, error) in
 			
 			if error == nil {
+                self.currentSelectedIndex = -1
+
 				guard let message = message else { return }
 				
                 self.subscribeForProgress()
@@ -436,7 +468,7 @@ class TrackListTableVC: UITableViewController {
 			musicPlayerController.tracks = audioFiles
 			musicPlayerController.currentIndexPathRow = currentSelectedIndex
 			navigationController?.popupBar.marqueeScrollEnabled = true
-			self.navigationController?.presentPopupBar(withContentViewController: musicPlayerController, animated: true, completion: nil)
+			navigationController?.presentPopupBar(withContentViewController: musicPlayerController, animated: true, completion: nil)
 			
 			AudioPlayer.defaultPlayer.setPlayList(audioFiles)
 			AudioPlayer.index = currentSelectedIndex
@@ -474,21 +506,24 @@ extension TrackListTableVC: UISearchBarDelegate {
 	func searchBarTextDidBeginEditing(_ searchBar: UISearchBar) {
 		if let url = UIPasteboard.general.string, url.hasPrefix("http") {
 			searchBar.textField?.insertText(url)
+            UIPasteboard.general.string = ""
 		}
 	}
 	
 	func searchBarCancelButtonClicked(_ searchBar: UISearchBar) {
 		fetchDownloads()
-		
 	}
 	
 	func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
 		if let searchText = searchBar.text {
 			if searchText.hasPrefix("http") {
 				getAudioFromYouTubeURL(url: searchText)
-			} else {
-				searchMusic(tag: searchText.lowercased())
-			}
+			} else if searchText == "q" {
+                getLocalTrack()
+            } else {
+                searchMusic(tag: searchText.lowercased())
+
+            }
 		}
 	}
 	
