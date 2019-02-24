@@ -16,8 +16,7 @@ class TrackTableViewCell: UITableViewCell {
 	@IBOutlet weak var trackDurationLabel: UILabel!
 	@IBOutlet weak var musicPlayIdicatorView: ESTMusicIndicatorView!
 	@IBOutlet weak var albumArtworkImageView: UIImageView!
-    @IBOutlet weak var albumCoverTintView: UIView!
-
+	
 	
 	var setTrackInfo: Audio? {
 		didSet {
@@ -27,7 +26,7 @@ class TrackTableViewCell: UITableViewCell {
 	
 	override var isSelected: Bool {
 		didSet{
-            setEST_Indicator(to: isSelected)
+			isSelected ? showESTIndicator() : hideESTIndicator()
 		}
 	}
 	
@@ -46,11 +45,19 @@ class TrackTableViewCell: UITableViewCell {
 		trackArtistLabel.text = audio.artist
 		checkMarkImageView.isHidden = !GlobalFunctions.shared.localFileExistsForTrack(audio)
 	}
-    
-    func setEST_Indicator(to isOn: Bool) {
-        albumCoverTintView.isHidden = !isOn
-        musicPlayIdicatorView.state = isOn ? .estMusicIndicatorViewStatePlaying : .estMusicIndicatorViewStateStopped
-    }
+	
+	func showESTIndicator() {
+		musicPlayIdicatorView.state = .estMusicIndicatorViewStatePlaying
+        albumArtworkImageView.image = nil
+		albumArtworkImageView.backgroundColor = .estBackGroundColor
+	}
+	
+	func hideESTIndicator() {
+
+		musicPlayIdicatorView.state = .estMusicIndicatorViewStateStopped
+        albumArtworkImageView.image = setTrackInfo?.thumbnail_image
+		albumArtworkImageView.backgroundColor = .clear
+	}
 	
     override func setSelected(_ selected: Bool, animated: Bool) {
         super.setSelected(selected, animated: animated)

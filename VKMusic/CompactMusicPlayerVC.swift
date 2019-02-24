@@ -10,7 +10,7 @@ import UIKit
 import LNPopupController
 import MediaPlayer
 
-class CompactMusicPlayerVC: UIViewController, UIGestureRecognizerDelegate {
+class CompactMusicPlayerVC: UIViewController {
 	//MARK: - @IBOutlet
 	@IBOutlet weak var musicControlsView: UIView!
 	@IBOutlet weak var songNameLabel: UILabel!
@@ -22,7 +22,6 @@ class CompactMusicPlayerVC: UIViewController, UIGestureRecognizerDelegate {
 	@IBOutlet weak var fullPlayerPlayPauseButton: UIButton!
 	@IBOutlet weak var activityIndicator: UIActivityIndicatorView!
 	@IBOutlet weak var tableView: UITableView!
-    
 	//MARK: - Constants
 	
 	//MARK: - Variables
@@ -33,35 +32,6 @@ class CompactMusicPlayerVC: UIViewController, UIGestureRecognizerDelegate {
 	var trackDurationSeconds = 0
 	var tracks = [Audio]()
 	var currentIndexPathRow = -1
-    
-    var statusBarVisible = true
-    
-    let volume = SubtleVolume(style: .rounded)
-    
-    override var prefersStatusBarHidden: Bool {
-        return !statusBarVisible
-    }
-    
-    override var preferredStatusBarStyle: UIStatusBarStyle {
-        return .lightContent
-    }
-    
-    override var preferredStatusBarUpdateAnimation: UIStatusBarAnimation {
-        return .slide
-    }
-    
-    override func viewDidLayoutSubviews() {
-        super.viewDidLayoutSubviews()
-        
-        if #available(iOS 11.0, *) {
-            if view.safeAreaInsets.top > 0 {
-                volume.padding = CGSize(width: 2, height: 8)
-                volume.frame = CGRect(x: 16, y: 8, width: 60, height: 20)
-            } else {
-                volume.frame = CGRect(x: 20, y: UIApplication.shared.statusBarFrame.height, width: UIScreen.main.bounds.width - 40, height: 20)
-            }
-        }
-    }
 	
 	required init?(coder aDecoder: NSCoder) {
 		super.init(coder: aDecoder)
@@ -78,7 +48,6 @@ class CompactMusicPlayerVC: UIViewController, UIGestureRecognizerDelegate {
 		else {
 			popupItem.rightBarButtonItems = [ puseBarButton, nextBarButton ]
 		}
-        
 	}
 	
 	override func viewWillAppear(_ animated: Bool) {
@@ -86,21 +55,13 @@ class CompactMusicPlayerVC: UIViewController, UIGestureRecognizerDelegate {
 		
 		tableView.reloadData()
 	}
-    
-    override var viewForPopupInteractionGestureRecognizer: UIView {
-        return UIView()
-    }
-    
+	
 	override func viewDidLoad() {
 		super.viewDidLoad()
 		setupUI()
 		tableView.scrollToRow(at: IndexPath(row: currentIndexPathRow, section: 0), at: .none, animated: true)
 	}
-    
-    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
-        return false
-    }
-    
+	
 	func setupUI() {
 		setupVolumeBar()
 		updateCurrentTrackInfo()
@@ -119,14 +80,12 @@ class CompactMusicPlayerVC: UIViewController, UIGestureRecognizerDelegate {
 		if #available(iOS 11.0, *) {
 			volumeOrigin = additionalSafeAreaInsets.top
 		}
-        
-        volume.barTintColor = .white
-        volume.barBackgroundColor = UIColor.white.withAlphaComponent(0.3)
-        volume.animation = .fadeIn
-        volume.padding = CGSize(width: 4, height: 8)
-        volume.delegate = self
-        
-        view.addSubview(volume)
+		let volume = SubtleVolume(style: .dashes)
+		volume.frame = CGRect(x: 0, y: volumeOrigin, width: UIScreen.main.bounds.width, height: volumeHeight)
+		volume.barTintColor = .white
+		volume.barBackgroundColor = UIColor.white.withAlphaComponent(0.3)
+		volume.animation = .slideDown
+		view.addSubview(volume)
 	}
 	
 	func updateCurrentTrackInfo() {
@@ -144,7 +103,7 @@ class CompactMusicPlayerVC: UIViewController, UIGestureRecognizerDelegate {
 		trackDurationSeconds = tracks[currentIndexPathRow].duration
 		durationSlider.maximumValue = Float(trackDurationSeconds)
 		
-        NotificationCenter.default.post(name: .playTrackAtIndex, object: nil, userInfo: ["index" : currentIndexPathRow])
+		NotificationCenter.default.post(name: .playTrackAtIndex, object: nil, userInfo: ["index" : currentIndexPathRow])
 	}
 	
 	func updatePlayButton() {
@@ -177,7 +136,7 @@ class CompactMusicPlayerVC: UIViewController, UIGestureRecognizerDelegate {
         prepPlayerControlsUIForNewSong(with: track.duration.toAudioString)
         
 		let trackPath = "\(track.title)_\(track.artist)_\(track.duration).mp\(track.url.last ?? "3")"
-		AudioPlayer.defaultPlayer.playAudio(fromURL: AppDirectory.getDownloadsFolderURL().appendingPathComponent(trackPath))
+		AudioPlayer.defaultPlayer.playAudio(fromURL: DocumentsDirectory.localDownloadsURL.appendingPathComponent(trackPath))
 	}
 	
     func playRemoteTrack(for track: Audio) {
@@ -287,6 +246,12 @@ class CompactMusicPlayerVC: UIViewController, UIGestureRecognizerDelegate {
 //MARK: - AudioPlayerDelegate
 extension CompactMusicPlayerVC: AudioPlayerDelegate {
 	
+	func receivedArtworkImage(_ image: UIImage) {
+		DispatchQueue.main.async {
+			self.albumArtImageView.image = image
+		}
+	}
+	
 	func audioDidChangeTime(_ time: Int64) {
 		//Unhide play button and hide activity indicator
         activityIndicator.stopAnimating()
@@ -301,13 +266,6 @@ extension CompactMusicPlayerVC: AudioPlayerDelegate {
 		currenTimeLabel.text = Int(time).toAudioString
 		durationLabel.text = "-\((Int(trackDurationSeconds) - Int(time)).toAudioString)"
 		
-        let track = tracks[currentIndexPathRow]
-        
-        if time > track.duration - 30 {
-            UserDefaults.standard.removeObject(forKey: track.url)
-        } else {
-            UserDefaults.standard.set(Double(time), forKey: track.url)
-        }
 	}
 	
 	func playerWillPlayNexAudio() {
@@ -358,32 +316,4 @@ extension CompactMusicPlayerVC: UITableViewDelegate, UITableViewDataSource {
 			tableView.reloadData()
 		}
 	}
-}
-
-extension CompactMusicPlayerVC: SubtleVolumeDelegate {
-    func subtleVolume(_ subtleVolume: SubtleVolume, accessoryFor value: Double) -> UIImage? {
-        return value > 0 ? #imageLiteral(resourceName: "volume-on.pdf") : #imageLiteral(resourceName: "volume-off.pdf")
-    }
-    
-    func subtleVolume(_ subtleVolume: SubtleVolume, didChange value: Double) {
-        if #available(iOS 11.0, *) {
-            if !subtleVolume.isAnimating && view.safeAreaInsets.top > 0 {
-                statusBarVisible = true
-                UIView.animate(withDuration: 0.1) {
-                    self.setNeedsStatusBarAppearanceUpdate()
-                }
-            }
-        }
-    }
-    
-    func subtleVolume(_ subtleVolume: SubtleVolume, willChange value: Double) {
-        if #available(iOS 11.0, *) {
-            if !subtleVolume.isAnimating && view.safeAreaInsets.top > 0 {
-                statusBarVisible = false
-                UIView.animate(withDuration: 0.1) {
-                    self.setNeedsStatusBarAppearanceUpdate()
-                }
-            }
-        }
-    }
 }

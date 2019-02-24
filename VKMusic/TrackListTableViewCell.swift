@@ -19,13 +19,6 @@ class TrackListTableViewCell: MGSwipeTableCell {
     @IBOutlet weak var musicPlayIdicatorView: ESTMusicIndicatorView!
     @IBOutlet weak var downloadProgressLabel: UILabel!
     @IBOutlet weak var albumArtworkImageView: UIImageView!
-    @IBOutlet weak var albumCoverTintView: UIView!
-    
-    override var isSelected: Bool {
-        didSet {
-            setEST_Indicator(to: isSelected)
-        }
-    }
     
     var audioData: Audio? = nil {
         didSet {
@@ -37,13 +30,6 @@ class TrackListTableViewCell: MGSwipeTableCell {
         didSet{
             processDownloadingData()
         }
-    }
-    
-    override func awakeFromNib() {
-        super.awakeFromNib()
-        
-        albumArtworkImageView.layer.cornerRadius = 5
-        albumArtworkImageView.clipsToBounds = true
     }
     
     func processDownloadingData() {
@@ -69,12 +55,32 @@ class TrackListTableViewCell: MGSwipeTableCell {
         albumArtworkImageView.image = audioData.thumbnail_image
 
     }
-    
-    func setEST_Indicator(to isOn: Bool) {
-        albumCoverTintView.isHidden = !isOn
-        musicPlayIdicatorView.state = isOn ? .estMusicIndicatorViewStatePlaying : .estMusicIndicatorViewStateStopped
-    }
 	
+	func showESTIndicator() {
+		musicPlayIdicatorView.state = .estMusicIndicatorViewStatePlaying
+		albumArtworkImageView.image = nil
+		albumArtworkImageView.backgroundColor = .estBackGroundColor
+	}
+	
+	func hideESTIndicator() {
+		musicPlayIdicatorView.state = .estMusicIndicatorViewStateStopped
+		albumArtworkImageView.image = audioData?.thumbnail_image
+		albumArtworkImageView.backgroundColor = .clear
+	}
+	
+	override var isSelected: Bool {
+		didSet{
+			isSelected ? showESTIndicator() : hideESTIndicator()
+		}
+	}
+    
+    override func awakeFromNib() {
+        super.awakeFromNib()
+		
+		albumArtworkImageView.layer.cornerRadius = 5
+		albumArtworkImageView.clipsToBounds = true
+    }
+
     override func setSelected(_ selected: Bool, animated: Bool) {
         super.setSelected(selected, animated: animated)
 

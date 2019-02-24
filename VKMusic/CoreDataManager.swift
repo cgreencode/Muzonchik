@@ -23,7 +23,7 @@ class CoreDataManager {
 		// The persistent store coordinator for the application. This implementation creates and returns a coordinator, having added the store for the application to it. This property is optional since there are legitimate error conditions that could cause the creation of the store to fail.
 		// Create the coordinator and store
 		let coordinator = NSPersistentStoreCoordinator(managedObjectModel: managedObjectModel)
-		let url = AppDirectory.localDocumentsURL.appendingPathComponent("CoreDataModel.sqlite") // type your database name here...
+		let url = DocumentsDirectory.localDocumentsURL.appendingPathComponent("CoreDataModel.sqlite") // type your database name here...
 		var failureReason = "There was an error creating or loading the application's saved data."
 		let options = [NSMigratePersistentStoresAutomaticallyOption: NSNumber(value: true as Bool), NSInferMappingModelAutomaticallyOption: NSNumber(value: true as Bool)]
 		do {
@@ -78,7 +78,6 @@ class CoreDataManager {
 		manageObject.setValue(audio.artist, forKey: "artist")
 		manageObject.setValue(audio.title, forKey: "title")
 		manageObject.setValue(incrementedID(), forKey: "id")
-        
         if let image = audio.thumbnail_image {
             let imageData = UIImageJPEGRepresentation(image, 1)
             manageObject.setValue(imageData, forKey: "thumbnail_img")
@@ -101,28 +100,15 @@ class CoreDataManager {
 		
 		saveContext()
 	}
-    
-//    func loadAllPrivateChatRooms() -> [CachedPrivateChatRoom]? {
-//        let fetchRequest: NSFetchRequest = CachedPrivateChatRoom.fetchRequest()
-//        fetchRequest.predicate = NSPredicate(format: "account_id = %@", Globals.shared.FIRUserUID)
-//        let nameSort = NSSortDescriptor(key: "last_message_date", ascending: false)
-//        fetchRequest.sortDescriptors = [nameSort]
-//
-//        do {
-//            return try CoreDataManager.shared.managedObjectContext.fetch(fetchRequest)
-//        } catch {
-//            let fetchError = error as NSError
-//            print("fetchSavedResults ERROR: \(fetchError.localizedDescription)")
-//            return nil
-//        }
-//    }
 	
-	func fetchSavedResults() -> [TrackInfo]? {
-        let fetchRequest: NSFetchRequest = TrackInfo.fetchRequest()
+	func fetchSavedResults() -> [NSManagedObject]? {
+		let fetchRequest = NSFetchRequest<NSFetchRequestResult>(entityName: "TrackInfo")
+		let entityDescription = NSEntityDescription.entity(forEntityName: "TrackInfo", in: managedObjectContext)
+		fetchRequest.entity = entityDescription
 		
 		do {
 			let result = try managedObjectContext.fetch(fetchRequest)
-			return result
+			return result as! [NSManagedObject]
 			
 		} catch {
 			let fetchError = error as NSError

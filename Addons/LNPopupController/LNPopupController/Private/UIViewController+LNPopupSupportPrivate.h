@@ -12,7 +12,7 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-void _LNPopupSupportSetPopupInsetsForViewController(UIViewController* controller, BOOL layout, UIEdgeInsets popupEdgeInsets);
+void _LNPopupSupportFixInsetsForViewController(UIViewController* controller, BOOL layout, CGFloat additionalSafeAreaInsetsBottom);
 
 @interface _LNPopupBottomBarSupport : UIView @end
 

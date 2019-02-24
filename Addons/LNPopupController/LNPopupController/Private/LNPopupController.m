@@ -162,8 +162,6 @@ static const CGFloat LNPopupBarDeveloperPanGestureThreshold = 0;
 		_effectView.frame = self.bounds;
 		_effectView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
 		[self addSubview:_effectView];
-        
-        _popupCloseButtonAutomaticallyUnobstructsTopBars = YES;
 	}
 	
 	return self;
@@ -323,7 +321,7 @@ static CGFloat __smoothstep(CGFloat a, CGFloat b, CGFloat x)
 
 - (CGFloat)_percentFromPopupBar
 {
-	return 1 - (CGRectGetMaxY(self.popupBar.frame) / (_cachedDefaultFrame.origin.y - _cachedInsets.bottom));
+	return 1 - (CGRectGetMaxY(self.popupBar.frame) / _cachedDefaultFrame.origin.y);
 }
 
 - (CGFloat)_percentFromPopupBarForBottomBarDisplacement
@@ -525,7 +523,7 @@ static CGFloat __smoothstep(CGFloat a, CGFloat b, CGFloat x)
 
 - (void)_popupBarPresentationByUserPanGestureHandler_began:(UIPanGestureRecognizer*)pgr
 {
-	if(self.popupBar.customBarViewController != nil && self.popupBar.customBarViewController.wantsDefaultPanGestureRecognizer == NO)
+	if(self.popupBar.customBarViewController != nil && self.popupBar.customBarViewController.wantsDefaultTapGestureRecognizer == NO)
 	{
 		return;
 	}
@@ -828,7 +826,7 @@ static CGFloat __smoothstep(CGFloat a, CGFloat b, CGFloat x)
 	_currentPopupItem = newContentController.popupItem;
 	_currentPopupItem.itemDelegate = self;
 	
-	self.popupBarStorage.popupItem = _currentPopupItem;
+	self.popupBar.popupItem = _currentPopupItem;
 	
 	if(_currentContentController)
 	{
@@ -996,16 +994,12 @@ static CGFloat __smoothstep(CGFloat a, CGFloat b, CGFloat x)
 		_popupCloseButtonTopConstraint.constant += (_containerController.popupContentViewController.prefersStatusBarHidden ? 0 : [UIApplication sharedApplication].statusBarFrame.size.height);
 	}
 	
-    
-    id hitTest = [[_currentContentController view] hitTest:CGPointMake(12, _popupCloseButtonTopConstraint.constant) withEvent:nil];
-    UINavigationBar* possibleBar = (id)[self _view:hitTest selfOrSuperviewKindOfClass:[UINavigationBar class]];
-    if(possibleBar)
-    {
-        if (_popupContentView.popupCloseButtonAutomaticallyUnobstructsTopBars)
-            _popupCloseButtonTopConstraint.constant += CGRectGetHeight(possibleBar.bounds);
-        else
-            _popupCloseButtonTopConstraint.constant += 6;
-    }
+	id hitTest = [[_currentContentController view] hitTest:CGPointMake(12, _popupCloseButtonTopConstraint.constant) withEvent:nil];
+	UINavigationBar* possibleBar = (id)[self _view:hitTest selfOrSuperviewKindOfClass:[UINavigationBar class]];
+	if(possibleBar)
+	{
+		_popupCloseButtonTopConstraint.constant += CGRectGetHeight(possibleBar.bounds);
+	}
 	
 	if(startingTopConstant != _popupCloseButtonTopConstraint.constant)
 	{
@@ -1200,11 +1194,11 @@ static void __LNPopupControllerDeeplyEnumerateSubviewsUsingBlock(UIView* view, v
 		
 		[self _setContentToState:LNPopupPresentationStateClosed];
 		
-		[_containerController.view layoutIfNeeded];
-		
 		CGRect barFrame = self.popupBar.frame;
 		barFrame.size.height = _LNPopupBarHeightForBarStyle(_LNPopupResolveBarStyleFromBarStyle(self.popupBar.barStyle), self.popupBar.customBarViewController);
 		self.popupBar.frame = barFrame;
+		
+		[_containerController.view layoutIfNeeded];
 		
 		[self.popupBar setNeedsLayout];
 		[self.popupBar layoutIfNeeded];
@@ -1212,7 +1206,7 @@ static void __LNPopupControllerDeeplyEnumerateSubviewsUsingBlock(UIView* view, v
 		[UIView animateWithDuration:animated ? 0.5 : 0.0 delay:0.0 usingSpringWithDamping:500 initialSpringVelocity:0 options:UIViewAnimationOptionCurveEaseInOut animations:^ {
 			self.popupBar.frame = [self _frameForClosedPopupBar];
 			
-			_LNPopupSupportSetPopupInsetsForViewController(_containerController, YES, UIEdgeInsetsMake(0, 0, barFrame.size.height, 0));
+			_LNPopupSupportFixInsetsForViewController(_containerController, YES, barFrame.size.height);
 			
 			if(open)
 			{
@@ -1271,10 +1265,11 @@ static void __LNPopupControllerDeeplyEnumerateSubviewsUsingBlock(UIView* view, v
 			[UIView animateWithDuration:animated ? 0.5 : 0.0 delay:0.0 usingSpringWithDamping:500 initialSpringVelocity:0 options:UIViewAnimationOptionCurveEaseInOut animations:^
 			 {
 				 CGRect barFrame = self.popupBar.frame;
+				 CGFloat oldHeight = barFrame.size.height;
 				 barFrame.size.height = 0;
 				 self.popupBar.frame = barFrame;
 				 
-				 _LNPopupSupportSetPopupInsetsForViewController(_containerController, YES, UIEdgeInsetsZero);
+				 _LNPopupSupportFixInsetsForViewController(_containerController, YES, - oldHeight);
 			 } completion:^(BOOL finished) {
 				 _popupControllerState = LNPopupPresentationStateHidden;
 				 
@@ -1291,7 +1286,7 @@ static void __LNPopupControllerDeeplyEnumerateSubviewsUsingBlock(UIView* view, v
 				 [self.popupContentView removeObserver:self forKeyPath:@"popupCloseButtonStyle"];
 				 self.popupContentView = nil;
 				 
-				 _LNPopupSupportSetPopupInsetsForViewController(_containerController, YES, UIEdgeInsetsZero);
+				 _LNPopupSupportFixInsetsForViewController(_containerController, YES, 0);
 				 
 				 _currentContentController = nil;
 				 
