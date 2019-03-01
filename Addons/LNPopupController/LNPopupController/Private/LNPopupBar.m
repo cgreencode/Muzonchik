@@ -122,24 +122,7 @@ const NSInteger LNBackgroundStyleInherit = -1;
     NSArray<__kindof NSLayoutConstraint *> * _progressViewVerticalConstraints;
 }
 
-CGFloat _LNPopupBarHeightForBarStyle(LNPopupBarStyle style, LNPopupCustomBarViewController* customBarVC)
-{
-	if(customBarVC) { return customBarVC.preferredContentSize.height; }
-	
-	return style == LNPopupBarStyleCompact ? LNPopupBarHeightCompact : LNPopupBarHeightProminent;
-}
-
-LNPopupBarStyle _LNPopupResolveBarStyleFromBarStyle(LNPopupBarStyle style)
-{
-	LNPopupBarStyle rv = style;
-	if(rv == LNPopupBarStyleDefault)
-	{
-		rv = [[NSProcessInfo processInfo] operatingSystemVersion].majorVersion > 9 ? LNPopupBarStyleProminent : LNPopupBarStyleCompact;
-	}
-	return rv;
-}
-
-static LNPopupBarProgressViewStyle _LNPopupResolveProgressViewStyleFromProgressViewStyle(LNPopupBarProgressViewStyle style)
+static inline __attribute__((always_inline)) LNPopupBarProgressViewStyle _LNPopupResolveProgressViewStyleFromProgressViewStyle(LNPopupBarProgressViewStyle style)
 {
 	LNPopupBarProgressViewStyle rv = style;
 	if(rv == LNPopupBarProgressViewStyleDefault)
@@ -149,7 +132,7 @@ static LNPopupBarProgressViewStyle _LNPopupResolveProgressViewStyleFromProgressV
 	return rv;
 }
 
-static UIBlurEffectStyle _LNBlurEffectStyleForSystemBarStyle(UIBarStyle systemBarStyle, LNPopupBarStyle barStyle)
+static inline __attribute__((always_inline)) UIBlurEffectStyle _LNBlurEffectStyleForSystemBarStyle(UIBarStyle systemBarStyle, LNPopupBarStyle barStyle)
 {
 	return systemBarStyle == UIBarStyleBlack ? UIBlurEffectStyleDark : barStyle == LNPopupBarStyleCompact ? UIBlurEffectStyleExtraLight : UIBlurEffectStyleLight;
 }
@@ -262,8 +245,8 @@ static UIBlurEffectStyle _LNBlurEffectStyleForSystemBarStyle(UIBarStyle systemBa
 		[_toolbar addSubview:_imageView];
 		
 		_shadowView = [UIView new];
-		_shadowView.backgroundColor = [UIColor colorWithWhite:169.0 / 255.0 alpha:1.0];
-		[self addSubview:_shadowView];
+		_shadowView.backgroundColor = [[UIColor blackColor] colorWithAlphaComponent:0.3];
+		[_backgroundView.contentView addSubview:_shadowView];
 		
 		_highlightView = [[UIView alloc] initWithFrame:self.bounds];
 		_highlightView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
@@ -320,7 +303,7 @@ static UIBlurEffectStyle _LNBlurEffectStyleForSystemBarStyle(UIBarStyle systemBa
 		//	[_toolbar bringSubviewToFront:_titlesView];
 		[self bringSubviewToFront:_shadowView];
 		
-		_shadowView.frame = CGRectMake(0, 0, self.toolbar.bounds.size.width, 1 / self.window.screen.nativeScale);
+		_shadowView.frame = CGRectMake(0, 0, self.toolbar.bounds.size.width, 1 / self.window.screen.scale);
 		
 		[self _layoutTitles];
 	}];
@@ -585,6 +568,7 @@ static UIBlurEffectStyle _LNBlurEffectStyleForSystemBarStyle(UIBarStyle systemBa
 	{
 		__FakeMarqueeLabel* rv = [[__FakeMarqueeLabel alloc] initWithFrame:_titlesView.bounds];
 		rv.minimumScaleFactor = 1.0;
+		rv.lineBreakMode = NSLineBreakByTruncatingTail;
 		return rv;
 	}
 	
@@ -627,14 +611,25 @@ static UIBlurEffectStyle _LNBlurEffectStyleForSystemBarStyle(UIBarStyle systemBa
 
 - (void)_updateTitleInsetsForCompactBar:(UIEdgeInsets*)titleInsets
 {
+	UIUserInterfaceLayoutDirection layoutDirection = [UIView userInterfaceLayoutDirectionForSemanticContentAttribute:self.semanticContentAttribute];
+	
 	UIView* leftmostViewLeft;
 	UIView* rightmostViewLeft;
-	[self _getLeftmostView:&leftmostViewLeft rightmostView:&rightmostViewLeft fromBarButtonItems:self.leftBarButtonItems];
 	
 	UIView* leftmostViewRight;
 	UIView* rightmostViewRight;
-	[self _getLeftmostView:&leftmostViewRight rightmostView:&rightmostViewRight fromBarButtonItems:self.rightBarButtonItems];
-
+	
+	if(layoutDirection == UIUserInterfaceLayoutDirectionLeftToRight)
+	{
+		[self _getLeftmostView:&leftmostViewLeft rightmostView:&rightmostViewLeft fromBarButtonItems:self.leftBarButtonItems];
+		[self _getLeftmostView:&leftmostViewRight rightmostView:&rightmostViewRight fromBarButtonItems:self.rightBarButtonItems];
+	}
+	else
+	{
+		[self _getLeftmostView:&rightmostViewLeft rightmostView:&leftmostViewLeft fromBarButtonItems:self.leftBarButtonItems];
+		[self _getLeftmostView:&rightmostViewRight rightmostView:&leftmostViewRight fromBarButtonItems:self.rightBarButtonItems];
+	}
+	
 	if(@available(iOS 11, *))
 	{
 		[leftmostViewLeft.superview layoutIfNeeded];
@@ -655,8 +650,19 @@ static UIBlurEffectStyle _LNBlurEffectStyleForSystemBarStyle(UIBarStyle systemBa
 		leftmostViewRightFrame = [self convertRect:leftmostViewRight.bounds fromView:leftmostViewRight];
 	}
 	
-	CGFloat widthLeft = rightmostViewLeftFrame.origin.x + rightmostViewLeftFrame.size.width;
-	CGFloat widthRight = self.bounds.size.width - leftmostViewRightFrame.origin.x;
+	CGFloat widthLeft = 0;
+	CGFloat widthRight = 0;
+	
+	if(layoutDirection == UIUserInterfaceLayoutDirectionLeftToRight)
+	{
+		widthLeft = rightmostViewLeftFrame.origin.x + rightmostViewLeftFrame.size.width;
+		widthRight = self.bounds.size.width - leftmostViewRightFrame.origin.x;
+	}
+	else
+	{
+		widthRight = leftmostViewRightFrame.origin.x + leftmostViewRightFrame.size.width;
+		widthLeft = self.bounds.size.width - rightmostViewLeftFrame.origin.x;
+	}
 	
 	if(NSProcessInfo.processInfo.operatingSystemVersion.majorVersion < 11)
 	{
@@ -674,14 +680,23 @@ static UIBlurEffectStyle _LNBlurEffectStyleForSystemBarStyle(UIBarStyle systemBa
 
 - (void)_updateTitleInsetsForProminentBar:(UIEdgeInsets*)titleInsets
 {
+	UIUserInterfaceLayoutDirection layoutDirection = [UIView userInterfaceLayoutDirectionForSemanticContentAttribute:self.semanticContentAttribute];
+	
 	UIView* leftmostView;
 	UIView* rightmostView;
 	
 	NSMutableArray* allItems = [NSMutableArray new];
 	[allItems addObjectsFromArray:self.leftBarButtonItems];
 	[allItems addObjectsFromArray:self.rightBarButtonItems];
-	
-	[self _getLeftmostView:&leftmostView rightmostView:&rightmostView fromBarButtonItems:allItems];
+
+	if(layoutDirection == UIUserInterfaceLayoutDirectionLeftToRight)
+	{
+		[self _getLeftmostView:&leftmostView rightmostView:&rightmostView fromBarButtonItems:allItems];
+	}
+	else
+	{
+		[self _getLeftmostView:&rightmostView rightmostView:&leftmostView fromBarButtonItems:allItems];
+	}
 	
 	if(@available(iOS 11, *))
 	{
@@ -693,15 +708,17 @@ static UIBlurEffectStyle _LNBlurEffectStyleForSystemBarStyle(UIBarStyle systemBa
 	if(leftmostView != nil)
 	{
 		leftmostViewFrame = [self convertRect:leftmostView.bounds fromView:leftmostView];
-		
-		//Account for an additional size iOS 11 adds to bar button items.
-		if(NSProcessInfo.processInfo.operatingSystemVersion.majorVersion >= 11 && [leftmostView isKindOfClass:NSClassFromString(_LNPopupDecodeBase64String(@"X1VJQnV0dG9uQmFyQnV0dG9u"))])
-		{
-			leftmostViewFrame.origin.x += (self.layoutMargins.left / 2);
-		}
 	}
 	
-	CGFloat width = self.bounds.size.width - leftmostViewFrame.origin.x;
+	CGFloat width;
+	if(layoutDirection == UIUserInterfaceLayoutDirectionLeftToRight)
+	{
+		width = self.bounds.size.width - leftmostViewFrame.origin.x;
+	}
+	else
+	{
+		width = leftmostViewFrame.origin.x + leftmostViewFrame.size.width;
+	}
 	
 	width = MAX(width, self.layoutMargins.right);
 	
@@ -756,47 +773,28 @@ static UIBlurEffectStyle _LNBlurEffectStyleForSystemBarStyle(UIBarStyle systemBa
 		if(_titleLabel == nil)
 		{
 			_titleLabel = [self _newMarqueeLabel];
+			_titleLabel.font = _resolvedStyle == LNPopupBarStyleProminent ? [UIFont systemFontOfSize:18 weight:UIFontWeightRegular] : [UIFont systemFontOfSize:12];
 			[_titlesView addSubview:_titleLabel];
 		}
-		
-		NSMutableParagraphStyle* paragraph = [NSMutableParagraphStyle new];
-		if(_resolvedStyle == LNPopupBarStyleCompact)
-		{
-			paragraph.alignment = NSTextAlignmentCenter;
-		}
-		else
-		{
-			paragraph.alignment = NSTextAlignmentNatural;
-		}
-		
-		if(_marqueeScrollEnabled == NO)
-		{
-			paragraph.lineBreakMode = NSLineBreakByTruncatingTail;
-		}
-		
-		NSMutableDictionary* defaultTitleAttribures = [@{NSParagraphStyleAttributeName: paragraph, NSFontAttributeName: _resolvedStyle == LNPopupBarStyleProminent ? [UIFont systemFontOfSize:18 weight:UIFontWeightRegular] : [UIFont systemFontOfSize:12]} mutableCopy];
-		[defaultTitleAttribures addEntriesFromDictionary:_titleTextAttributes];
-		
-		NSMutableDictionary* defaultSubtitleAttribures = [@{NSParagraphStyleAttributeName: paragraph, NSFontAttributeName: _resolvedStyle == LNPopupBarStyleProminent ? [UIFont systemFontOfSize:14 weight:UIFontWeightRegular] : [UIFont systemFontOfSize:12]} mutableCopy];
-		[defaultSubtitleAttribures addEntriesFromDictionary:_subtitleTextAttributes];
 		
 		BOOL reset = NO;
 		
 		if([_titleLabel.text isEqualToString:_title] == NO && _title != nil)
 		{
-			_titleLabel.attributedText = [[NSAttributedString alloc] initWithString:_title attributes:defaultTitleAttribures];
+			_titleLabel.attributedText = [[NSAttributedString alloc] initWithString:_title attributes:_titleTextAttributes];
 			reset = YES;
 		}
 		
 		if(_subtitleLabel == nil)
 		{
 			_subtitleLabel = [self _newMarqueeLabel];
+			_subtitleLabel.font = _resolvedStyle == LNPopupBarStyleProminent ? [UIFont systemFontOfSize:14 weight:UIFontWeightRegular] : [UIFont systemFontOfSize:12];
 			[_titlesView addSubview:_subtitleLabel];
 		}
 		
 		if([_subtitleLabel.text isEqualToString:_subtitle] == NO && _subtitle != nil)
 		{
-			_subtitleLabel.attributedText = [[NSAttributedString alloc] initWithString:_subtitle attributes:defaultSubtitleAttribures];
+			_subtitleLabel.attributedText = [[NSAttributedString alloc] initWithString:_subtitle attributes:_subtitleTextAttributes];
 			reset = YES;
 		}
 		

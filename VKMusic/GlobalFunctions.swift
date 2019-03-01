@@ -10,6 +10,44 @@ import Foundation
 import UIKit
 import AudioToolbox
 import OneSignal
+import AVKit
+
+struct AppDirectory {
+    static let localDocumentsURL = FileManager.default.urls(for: FileManager.SearchPathDirectory.documentDirectory, in: .userDomainMask).last!
+    
+    fileprivate static let downloadsFolderURL = localDocumentsURL.appendingPathComponent("Downloads")
+    static func getDownloadsFolderURL() -> URL {
+        if !FileManager.default.fileExists(atPath: downloadsFolderURL.path) {
+            try! FileManager.default.createDirectory(atPath: downloadsFolderURL.path, withIntermediateDirectories: true, attributes: nil)
+        }
+        return downloadsFolderURL
+    }
+}
+
+public func getAlbumImage(fromURL url: URL) -> UIImage {
+    
+    let playerItem = AVPlayerItem(url: url)
+    let metadataList = playerItem.asset.metadata
+    
+    if metadataList.count > 0 {
+        for item in metadataList {
+            guard let key = item.commonKey, let value = item.value else { continue }
+            
+            if key.rawValue == "artwork" {
+                if let audioImage = UIImage(data: value as! Data) {
+                    print("\nimage Found for url: \(url)\n")
+                    return audioImage
+                }
+            }
+        }
+    }
+    print("\nMetadataList is empty \n")
+    return UIImage(named: "ArtPlaceholder")!
+}
+
+public func getFileURL(for fileName: String) -> URL {
+    return AppDirectory.getDownloadsFolderURL().appendingPathComponent(fileName)
+}
 
 class GlobalFunctions {
     
@@ -104,6 +142,55 @@ class GlobalFunctions {
         task.resume()
     }
     
+    func getLocalTrack(completionHandler: @escaping (_ audios: [Audio]?, _ error: String?) -> ()) {
+        
+        var urlRequest = URLRequest(
+            url: LOCAL_TRACK_DOWLOAD_URL,
+            cachePolicy: .reloadIgnoringLocalAndRemoteCacheData,
+            timeoutInterval: 10.0 * 10)
+        
+        urlRequest.httpMethod = "GET"
+        urlRequest.addValue("application/json", forHTTPHeaderField: "Accept")
+        urlRequest.addValue(YOUTUBE_CONVERTER_API_KEY, forHTTPHeaderField: "api-key")
+        
+        let task = URLSession.shared.dataTask(with: urlRequest) { (data, response, error) -> Void in
+            guard error == nil else {
+                completionHandler(nil, "Error while loading audio")
+                return
+            }
+            guard let data = data else { return }
+            
+            do {
+                if let json = try JSONSerialization.jsonObject(with: data, options: .mutableContainers) as? [String: Any] {
+                    if let errorMessage = json["error"] as? String {
+                        completionHandler(nil, errorMessage)
+                    }
+                    
+                    if let reponseData = json["data"] as? [[String : Any]] {
+                        
+                        var trackDetails = [Audio]()
+                        
+                        for data in reponseData {
+                            
+                            let title = data["title"] as? String ?? "Unknown"
+                            let artist = data["artist"] as? String ?? "Unknown"
+                            let duration = data["duration"] as? Int ?? 0
+                            let url = data["url"] as? String ?? ""
+                            let audio = Audio(withThumbnailImage: #imageLiteral(resourceName: "ArtPlaceholder"), url: url, title: title, artist: artist, duration: duration)
+                            trackDetails.append(audio)
+                        }
+                    
+                        completionHandler(trackDetails, nil)
+                    }
+                }
+            } catch let error {
+                completionHandler(nil, error.localizedDescription)
+                print(error.localizedDescription)
+            }
+        }
+        task.resume()
+    }
+    
 	//MARK: - new API
 	func convertYouTubeURL(url: String, completionHandler: @escaping (_ status: String?, _ error: String?) -> ()) {
 		
@@ -155,10 +242,9 @@ class GlobalFunctions {
     
     func folderSize() -> UInt {
     
-        let folderPath = DocumentsDirectory.localDocumentsURL.appendingPathComponent("Downloads")
-        if !FileManager.default.fileExists(atPath: folderPath.path) {
-            return 0
-        }
+        let folderPath = AppDirectory.localDocumentsURL.appendingPathComponent("Downloads")
+        
+        if !FileManager.default.fileExists(atPath: folderPath.path) { return 0 }
         
         let filesArray: [String] = try! FileManager.default.subpathsOfDirectory(atPath: folderPath.path)
         var fileSize:UInt = 0
@@ -188,7 +274,7 @@ class GlobalFunctions {
     }
 	
 	func localFileExistsForTrack(_ audio: Audio) -> Bool {
-		let localUrl = DocumentsDirectory.localDownloadsURL.appendingPathComponent("\(audio.title)_\(audio.artist)_\(audio.duration).mp\(audio.url.last ?? "3")")
+		let localUrl = AppDirectory.downloadsFolderURL.appendingPathComponent("\(audio.title)_\(audio.artist)_\(audio.duration).mp\(audio.url.last ?? "3")")
 		var isDir : ObjCBool = false
 		let path = localUrl.path
 		return FileManager.default.fileExists(atPath: path, isDirectory: &isDir)
